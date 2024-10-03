@@ -6,19 +6,23 @@ import PageContentWrapper from '../components/common/PageContentWrapper';
 import IdentityTable from '../components/identity/IdentityTable';
 import { RootKeyObject, mapApiResponseToObjects } from '../utils/rootkey';
 import apiClient from '../api';
+import { useServerDown } from '../context/ServerDownContext';
 
 export interface RootKey {
   signingKey: string;
 }
 
-export default function Identity() {
+export default function IdentityPage() {
   const navigate = useNavigate();
+  const { showServerDownPopup } = useServerDown();
   const [errorMessage, setErrorMessage] = useState('');
   const [rootKeys, setRootKeys] = useState<RootKeyObject[]>([]);
   useEffect(() => {
     const setDids = async () => {
       setErrorMessage('');
-      const didResponse = await apiClient.node().getDidList();
+      const didResponse = await apiClient(showServerDownPopup)
+        .node()
+        .getDidList();
       if (didResponse.error) {
         setErrorMessage(didResponse.error.message);
         return;
@@ -28,6 +32,7 @@ export default function Identity() {
       }
     };
     setDids();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

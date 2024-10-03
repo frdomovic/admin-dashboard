@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navigation } from '../components/Navigation';
 import { FlexLayout } from '../components/layout/FlexLayout';
 import PageContentWrapper from '../components/common/PageContentWrapper';
@@ -14,52 +14,47 @@ import {
   ContextStorage,
   User,
 } from '../api/dataSource/NodeDataSource';
+import { ContextDetails } from '../types/context';
+import { useServerDown } from '../context/ServerDownContext';
 
 const initialOptions = [
   {
     name: 'Details',
     id: DetailsOptions.DETAILS,
     count: -1,
-  },
+  } as TableOptions,
   {
     name: 'Client Keys',
     id: DetailsOptions.CLIENT_KEYS,
     count: 0,
-  },
+  } as TableOptions,
   {
     name: 'Users',
     id: DetailsOptions.USERS,
     count: 0,
-  },
+  } as TableOptions,
 ];
 
-export interface ContextObject {
-  id: string;
-  applicationId: string;
-  name: string;
-  description: string;
-  repository: string;
-  path: string;
-  version: string;
-  owner: string;
-  contextId: string;
-}
-
-export interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-}
-
-export default function ContextDetails() {
+export default function ContextDetailsPage() {
   const { id } = useParams();
+  const { showServerDownPopup } = useServerDown();
   const navigate = useNavigate();
-  const [contextDetails, setContextDetails] =
-    useState<ApiResponse<ContextObject>>();
-  const [contextClientKeys, setContextClientKeys] =
-    useState<ApiResponse<ClientKey[]>>();
-  const [contextUsers, setContextUsers] = useState<ApiResponse<User[]>>();
-  const [contextStorage, setContextStorage] =
-    useState<ApiResponse<ContextStorage>>();
+  const [contextDetails, setContextDetails] = useState<ContextDetails>();
+  const [contextDetailsError, setContextDetailsError] = useState<string | null>(
+    null,
+  );
+  const [contextClientKeys, setContextClientKeys] = useState<ClientKey[]>();
+  const [contextClientKeysError, setContextClientKeysError] = useState<
+    string | null
+  >(null);
+  const [contextUsers, setContextUsers] = useState<User[]>();
+  const [contextUsersError, setContextUsersError] = useState<string | null>(
+    null,
+  );
+  const [contextStorage, setContextStorage] = useState<ContextStorage>();
+  const [contextStorageError, setContextStorageError] = useState<string | null>(
+    null,
+  );
   const [currentOption, setCurrentOption] = useState<string>(
     DetailsOptions.DETAILS,
   );
@@ -67,17 +62,23 @@ export default function ContextDetails() {
     useState<TableOptions[]>(initialOptions);
   const { getPackage, getLatestRelease } = useRPC();
 
-  const generateContextObjects = async (context: Context) => {
-    const packageData = await getPackage(context.applicationId);
-    const versionData = await getLatestRelease(context.applicationId);
+  const generateContextObjects = useCallback(
+    async (context: Context, id: string) => {
+      const packageData = await getPackage(context.applicationId);
+      const versionData = await getLatestRelease(context.applicationId);
 
-    return {
-      ...packageData,
-      ...versionData,
-      contextId: id,
-      applicationId: context.applicationId,
-    } as ContextObject;
-  };
+      const contextDetails: ContextDetails = {
+        applicationId: context.applicationId,
+        contextId: id,
+        package: packageData,
+        release: versionData,
+      };
+
+      return contextDetails;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id],
+  );
 
   useEffect(() => {
     const fetchNodeContexts = async () => {
@@ -88,37 +89,38 @@ export default function ContextDetails() {
           contextClientUsers,
           contextStorage,
         ] = await Promise.all([
-          apiClient.node().getContext(id),
-          apiClient.node().getContextClientKeys(id),
-          apiClient.node().getContextUsers(id),
-          apiClient.node().getContextStorageUsage(id),
+          apiClient(showServerDownPopup).node().getContext(id),
+          apiClient(showServerDownPopup).node().getContextClientKeys(id),
+          apiClient(showServerDownPopup).node().getContextUsers(id),
+          apiClient(showServerDownPopup).node().getContextStorageUsage(id),
         ]);
 
         if (nodeContext.data) {
           const contextObject = await generateContextObjects(
             nodeContext.data.context,
+            id,
           );
-          setContextDetails({ data: contextObject });
+          setContextDetails(contextObject);
         } else {
-          setContextDetails({ error: nodeContext.error?.message });
+          setContextDetailsError(nodeContext.error?.message);
         }
 
         if (contextClientKeys.data) {
-          setContextClientKeys({ data: contextClientKeys.data.clientKeys });
+          setContextClientKeys(contextClientKeys.data.clientKeys);
         } else {
-          setContextClientKeys({ error: contextClientKeys.error?.message });
+          setContextClientKeysError(contextClientKeys.error?.message);
         }
 
         if (contextClientUsers.data) {
-          setContextUsers({ data: contextClientUsers.data.contextUsers });
+          setContextUsers(contextClientUsers.data.contextUsers);
         } else {
-          setContextUsers({ error: contextClientUsers.error?.message });
+          setContextUsersError(contextClientUsers.error?.message);
         }
 
         if (contextStorage.data) {
-          setContextStorage({ data: contextStorage.data });
+          setContextStorage(contextStorage.data);
         } else {
-          setContextStorage({ error: contextStorage.error?.message });
+          setContextStorageError(contextStorage.error?.message);
         }
 
         setTableOptions([
@@ -141,7 +143,8 @@ export default function ContextDetails() {
       }
     };
     fetchNodeContexts();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generateContextObjects, id]);
 
   return (
     <FlexLayout>
@@ -153,9 +156,13 @@ export default function ContextDetails() {
           contextStorage && (
             <ContextTable
               contextDetails={contextDetails}
+              contextDetailsError={contextDetailsError}
               contextClientKeys={contextClientKeys}
+              contextClientKeysError={contextClientKeysError}
               contextUsers={contextUsers}
+              contextUsersError={contextUsersError}
               contextStorage={contextStorage}
+              contextStorageError={contextStorageError}
               navigateToContextList={() => navigate('/contexts')}
               currentOption={currentOption}
               setCurrentOption={setCurrentOption}

@@ -9,14 +9,23 @@ import PageContentWrapper from '../components/common/PageContentWrapper';
 import ApplicationsTable from '../components/applications/ApplicationsTable';
 import { TableOptions } from '../components/common/OptionsHeader';
 import { ApplicationOptions } from '../constants/ContextConstants';
+import {
+  Application,
+  GetInstalledApplicationsResponse,
+  InstalledApplication,
+} from '../api/dataSource/NodeDataSource';
+import { ResponseData } from '../api/response';
+import { useServerDown } from '../context/ServerDownContext';
+import { AppMetadata, parseAppMetadata } from '../utils/metadata';
 
 export enum Tabs {
-  INSTALL_APPLICATION,
-  APPLICATION_LIST,
+  AVAILABLE,
+  OWNED,
+  INSTALLED,
 }
 
 export interface Package {
-  id: string;
+  id: string; // this is contract app id
   name: string;
   description: string;
   repository: string;
@@ -30,15 +39,6 @@ export interface Release {
   hash: string;
 }
 
-export interface NodeApp {
-  id: string;
-  version: string;
-}
-
-export interface Application extends Package {
-  version: string;
-}
-
 const initialOptions = [
   {
     name: 'Available',
@@ -50,64 +50,137 @@ const initialOptions = [
     id: ApplicationOptions.OWNED,
     count: 0,
   },
+  {
+    name: 'Installed',
+    id: ApplicationOptions.INSTALLED,
+    count: 0,
+  },
 ];
 
 export interface Applications {
   available: Application[];
   owned: Application[];
+  installed: Application[];
 }
 
-export default function Applications() {
+export default function ApplicationsPage() {
   const navigate = useNavigate();
-  const { getPackages, getPackage } = useRPC();
-  const [selectedTab, setSelectedTab] = useState(Tabs.APPLICATION_LIST);
+  const { showServerDownPopup } = useServerDown();
+  const { getPackages, getLatestRelease, getPackage } = useRPC();
   const [errorMessage, setErrorMessage] = useState('');
   const [currentOption, setCurrentOption] = useState<string>(
     ApplicationOptions.AVAILABLE,
   );
-  const [tableOptions, _setTableOptions] =
-    useState<TableOptions[]>(initialOptions);
-  const [packages, setPackages] = useState<Package[]>([]);
+  const [tableOptions] = useState<TableOptions[]>(initialOptions);
   const [applications, setApplications] = useState<Applications>({
     available: [],
     owned: [],
+    installed: [],
   });
 
   useEffect(() => {
-    if (!packages.length) {
-      (async () => {
-        setPackages(await getPackages());
-      })();
-    }
-  }, []);
+    const setApplicationsList = async () => {
+      const packages = await getPackages();
+      if (packages.length !== 0) {
+        var tempApplications: Application[] = await Promise.all(
+          packages.map(async (appPackage: Package) => {
+            const releaseData = await getLatestRelease(appPackage.id);
 
-  useEffect(() => {
-    const setApps = async () => {
-      setErrorMessage('');
-      const fetchApplicationResponse = await apiClient
-        .node()
-        .getInstalledApplications();
-      if (fetchApplicationResponse.error) {
-        setErrorMessage(fetchApplicationResponse.error.message);
-        return;
-      }
-      let installedApplications = fetchApplicationResponse.data?.apps;
-      if (installedApplications.length !== 0) {
-        const tempApplications = await Promise.all(
-          installedApplications.map(async (app: NodeApp) => {
-            const packageData = await getPackage(app.id);
-            return { ...packageData, id: app.id, version: app.version };
+            const application: Application = {
+              id: appPackage.id,
+              name: appPackage.name,
+              description: appPackage.description,
+              repository: appPackage.repository,
+              owner: appPackage.owner,
+              version: releaseData?.version ?? '',
+              blob: '',
+              source: '',
+              contract_app_id: appPackage.id,
+            };
+            return application;
           }),
         );
+
+        //remove all apps without release
+        tempApplications = tempApplications.filter((app) => app.version !== '');
+
         setApplications((prevState: Applications) => ({
           ...prevState,
           available: tempApplications,
         }));
       }
     };
+    setApplicationsList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const setApps = async () => {
+      setErrorMessage('');
+      const fetchApplicationResponse: ResponseData<GetInstalledApplicationsResponse> =
+        await apiClient(showServerDownPopup).node().getInstalledApplications();
+
+      if (fetchApplicationResponse.error) {
+        setErrorMessage(fetchApplicationResponse.error.message);
+        return;
+      }
+      let installedApplications = fetchApplicationResponse.data?.apps;
+      if (installedApplications.length !== 0) {
+        var tempApplications: (Application | null)[] = await Promise.all(
+          installedApplications.map(
+            async (app: InstalledApplication): Promise<Application | null> => {
+              var appMetadata: AppMetadata | null = parseAppMetadata(
+                app.metadata,
+              );
+
+              let application: Application | null = null;
+              if (!appMetadata) {
+                application = {
+                  id: app.id,
+                  version: app.version,
+                  source: app.source,
+                  blob: app.blob,
+                  contract_app_id: null,
+                  name: 'local app',
+                  description: null,
+                  repository: null,
+                  owner: null,
+                };
+              } else {
+                const packageData: Package | null = await getPackage(
+                  appMetadata.contractAppId,
+                );
+
+                if (packageData) {
+                  application = {
+                    ...app,
+                    contract_app_id: appMetadata.contractAppId,
+                    name: packageData?.name ?? '',
+                    description: packageData?.description,
+                    repository: packageData?.repository,
+                    owner: packageData?.owner,
+                  };
+                }
+              }
+
+              return application;
+            },
+          ),
+        );
+        var installed: Application[] = tempApplications.filter(
+          (app): app is Application => app !== null,
+        );
+
+        setApplications((prevState: Applications) => ({
+          ...prevState,
+          installed,
+        }));
+      }
+    };
 
     setApps();
-  }, [selectedTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <FlexLayout>
@@ -118,9 +191,13 @@ export default function Applications() {
           currentOption={currentOption}
           setCurrentOption={setCurrentOption}
           tableOptions={tableOptions}
-          navigateToAppDetails={(id: string) => navigate(`/applications/${id}`)}
+          navigateToAppDetails={(app: Application | undefined) => {
+            if (app) {
+              navigate(`/applications/${app.id}`);
+            }
+          }}
           navigateToPublishApp={() => navigate('/publish-application')}
-          changeSelectedTab={() => setSelectedTab(Tabs.INSTALL_APPLICATION)}
+          navigateToInstallApp={() => navigate('/applications/install')}
           errorMessage={errorMessage}
         />
       </PageContentWrapper>

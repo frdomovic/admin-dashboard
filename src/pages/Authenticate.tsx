@@ -1,16 +1,17 @@
 import React from 'react';
-import { LoginSelector } from '@calimero-is-near/calimero-p2p-sdk';
 import { useNavigate } from 'react-router-dom';
 import ContentWrapper from '../components/login/ContentWrapper';
+import LoginSelector from '../components/login/wallets/LoginSelector';
 
-export default function Authenticate() {
+export default function AuthenticatePage() {
   const navigate = useNavigate();
   return (
     <ContentWrapper>
       <LoginSelector
         navigateMetamaskLogin={() => navigate('/auth/metamask')}
         navigateNearLogin={() => navigate('/auth/near')}
-        cardBackgroundColor={undefined}
+        navigateStarknetLogin={() => navigate('/auth/starknet')}
+        navigateIcpLogin={() => navigate('/auth/icp')}
       />
     </ContentWrapper>
   );

@@ -5,32 +5,53 @@ import {
   HealthStatus,
   ContextClientKeysList,
   ContextUsersList,
-  ListApplicationsResponse,
+  GetInstalledApplicationsResponse,
   ApiContext,
   ContextList,
   DidResponse,
   DeleteContextResponse,
+  JoinContextResponse,
+  LoginRequest,
+  LoginResponse,
+  NodeChallenge,
+  RootKeyResponse,
+  InstallApplicationResponse,
+  InstalledApplication,
+  ContextIdentitiesResponse,
+  CreateTokenResponse,
 } from './dataSource/NodeDataSource';
 import { ApiResponse } from './response';
 
 export interface NodeApi {
-  getInstalledApplications(): ApiResponse<ListApplicationsResponse>;
+  getInstalledApplications(): ApiResponse<GetInstalledApplicationsResponse>;
+  getInstalledApplicationDetails(
+    appId: string,
+  ): ApiResponse<InstalledApplication>;
   getContexts(): ApiResponse<ContextList>;
   getContext(contextId: string): ApiResponse<ApiContext>;
-  getContext(contextId: string): ApiResponse<Context>;
   getContextClientKeys(contextId: string): ApiResponse<ContextClientKeysList>;
   getContextUsers(contextId: string): ApiResponse<ContextUsersList>;
   deleteContext(contextId: string): ApiResponse<DeleteContextResponse>;
   startContexts(
     applicationId: string,
-    initFunction: string,
     initArguments: string,
   ): ApiResponse<Context>;
   getDidList(): ApiResponse<DidResponse>;
   health(request: HealthRequest): ApiResponse<HealthStatus>;
   getContextStorageUsage(contextId: string): ApiResponse<ContextStorage>;
   installApplication(
-    selectedPackage: string,
+    selectedPackageId: string,
     selectedVersion: string,
-  ): ApiResponse<boolean>;
+    ipfsPath: string,
+    hash: string,
+  ): ApiResponse<InstallApplicationResponse>;
+  joinContext(contextId: string): ApiResponse<JoinContextResponse>;
+  login(loginRequest: LoginRequest): ApiResponse<LoginResponse>;
+  requestChallenge(): ApiResponse<NodeChallenge>;
+  addRootKey(rootKeyRequest: LoginRequest): ApiResponse<RootKeyResponse>;
+  getContextIdentity(contextId: string): ApiResponse<ContextIdentitiesResponse>;
+  createAccessToken(
+    contextId: string,
+    contextIdentity: string,
+  ): ApiResponse<CreateTokenResponse>;
 }

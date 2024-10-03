@@ -5,6 +5,7 @@ import {
   Account,
   BrowserWallet,
   FinalExecutionOutcome,
+  NetworkId,
   setupWalletSelector,
 } from '@near-wallet-selector/core';
 import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
@@ -22,7 +23,7 @@ import { getNearEnvironment } from '../utils/node';
 
 const BLOBBY_IPFS = 'https://blobby-public.euw3.prod.gcp.calimero.network';
 
-export default function AddRelease() {
+export default function AddReleasePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -70,20 +71,22 @@ export default function AddRelease() {
     };
     const fetchPackageInfo = async () => {
       if (id) {
-        const packageInfo = await getPackage(id);
-        setApplicationInformation(packageInfo);
-        const latestRelease = await getLatestRelease(id);
-        setLatestRelease(latestRelease?.version!);
+        const packageInfo: Package | null = await getPackage(id);
+        if (packageInfo) {
+          setApplicationInformation(packageInfo);
+          const latestRelease = await getLatestRelease(id);
+          setLatestRelease(latestRelease?.version!);
+        }
       }
     };
 
     fetchWalletAccounts();
     fetchPackageInfo();
-  }, [id]);
+  }, [getLatestRelease, getPackage, id]);
 
   const addWalletAccount = async () => {
     const selector = await setupWalletSelector({
-      network: getNearEnvironment(),
+      network: getNearEnvironment() as NetworkId,
       modules: [setupMyNearWallet()],
     });
     const wallet: BrowserWallet = await selector.wallet('my-near-wallet');

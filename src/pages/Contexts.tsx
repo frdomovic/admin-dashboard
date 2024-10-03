@@ -1,47 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navigation } from '../components/Navigation';
 import { FlexLayout } from '../components/layout/FlexLayout';
 import PageContentWrapper from '../components/common/PageContentWrapper';
 import ContextTable from '../components/context/ContextTable';
-import { Options } from '../constants/ContextConstants';
+import { ContextOptions } from '../constants/ContextConstants';
 import { useNavigate } from 'react-router-dom';
 import { useRPC } from '../hooks/useNear';
 import apiClient from '../api/index';
-import { Context, ContextsList } from '../api/dataSource/NodeDataSource';
+import {
+  Context,
+  ContextList,
+  ContextsList,
+} from '../api/dataSource/NodeDataSource';
 import { ModalContent } from '../components/common/StatusModal';
 import { TableOptions } from '../components/common/OptionsHeader';
-
-export interface Invitation {
-  id: string;
-  invitedOn: string;
-}
-
-export interface ContextObject {
-  id: string;
-  applicationId: string;
-  name: string;
-  description: string;
-  repository: string;
-  owner: string;
-}
+import { ResponseData } from '../api/response';
+import { ContextObject } from '../types/context';
+import { useServerDown } from '../context/ServerDownContext';
 
 const initialOptions = [
   {
     name: 'Joined',
-    id: Options.JOINED,
+    id: ContextOptions.JOINED,
     count: 0,
-  },
-  {
-    name: 'Invited',
-    id: Options.INVITED,
-    count: 0,
-  },
+  } as TableOptions,
 ];
 
-export default function Contexts() {
+export default function ContextsPage() {
   const navigate = useNavigate();
+  const { showServerDownPopup } = useServerDown();
   const { getPackage } = useRPC();
-  const [currentOption, setCurrentOption] = useState<string>(Options.JOINED);
+  const [currentOption, setCurrentOption] = useState<string>(
+    ContextOptions.JOINED,
+  );
   const [tableOptions, setTableOptions] =
     useState<TableOptions[]>(initialOptions);
   const [errorMessage, setErrorMessage] = useState('');
@@ -59,29 +50,37 @@ export default function Contexts() {
     ContextsList<ContextObject>
   >({
     joined: [],
-    invited: [],
   });
 
-  const generateContextObjects = async (
-    contexts: Context[],
-  ): Promise<ContextObject[]> => {
-    try {
-      const tempContextObjects = await Promise.all(
-        contexts.map(async (app: Context) => {
-          const packageData = await getPackage(app.applicationId);
-          return { ...packageData, id: app.id, applicationId: packageData.id };
-        }),
-      );
-      return tempContextObjects;
-    } catch (error) {
-      console.error('Error generating context objects:', error);
-      return [];
-    }
-  };
+  const generateContextObjects = useCallback(
+    async (contexts: Context[]): Promise<ContextObject[]> => {
+      try {
+        const tempContextObjects: ContextObject[] = await Promise.all(
+          contexts.map(async (app: Context) => {
+            const packageData = await getPackage(app.applicationId);
+            const contextObject: ContextObject = {
+              id: app.id,
+              package: packageData,
+            };
+            return contextObject;
+          }),
+        );
+        return tempContextObjects;
+      } catch (error) {
+        console.error('Error generating context objects:', error);
+        return [];
+      }
+    },
+    [getPackage],
+  );
 
-  const fetchNodeContexts = async () => {
+  const fetchNodeContexts = useCallback(async () => {
     setErrorMessage('');
-    const fetchContextsResponse = await apiClient.node().getContexts();
+    const fetchContextsResponse: ResponseData<ContextList> = await apiClient(
+      showServerDownPopup,
+    )
+      .node()
+      .getContexts();
     // TODO - fetch invitations
     if (fetchContextsResponse.error) {
       setErrorMessage(fetchContextsResponse.error.message);
@@ -100,26 +99,21 @@ export default function Contexts() {
       setTableOptions([
         {
           name: 'Joined',
-          id: Options.JOINED,
+          id: ContextOptions.JOINED,
           count: nodeContexts.contexts?.length ?? 0,
-        },
-        {
-          name: 'Invited',
-          // TODO - invitation count when api is ready
-          id: Options.INVITED,
-          count: 0,
         },
       ]);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchNodeContexts();
-  }, []);
+  }, [fetchNodeContexts]);
 
   const deleteNodeContext = async () => {
     if (!selectedContextId) return;
-    const deleteContextResponse = await apiClient
+    const deleteContextResponse = await apiClient(showServerDownPopup)
       .node()
       .deleteContext(selectedContextId);
     if (deleteContextResponse.error) {
@@ -157,22 +151,13 @@ export default function Contexts() {
     setShowActionDialog(true);
   };
 
-  const handleInvitation = async (id: string, isAccepted?: boolean) => {
-    // TODO: when api for handling invitations is ready
-    if (isAccepted) {
-      // TODO: handle invitation acceptance
-    } else {
-      // TODO: handle invitation rejection
-    }
-  };
-
   return (
     <FlexLayout>
       <Navigation />
       <PageContentWrapper>
         <ContextTable
           nodeContextList={nodeContextList}
-          naviageToStartContext={() => navigate('/contexts/start-context')}
+          navigateToStartContext={() => navigate('/contexts/start-context')}
           currentOption={currentOption}
           setCurrentOption={setCurrentOption}
           tableOptions={tableOptions}
@@ -183,7 +168,6 @@ export default function Contexts() {
           showActionDialog={showActionDialog}
           setShowActionDialog={setShowActionDialog}
           showModal={showModal}
-          handleInvitation={handleInvitation}
           errorMessage={errorMessage}
         />
       </PageContentWrapper>

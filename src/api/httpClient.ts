@@ -29,12 +29,24 @@ export interface HttpClient {
   ): Promise<ResponseData<T>>;
   head(url: string, headers?: Header): Promise<ResponseData<void>>;
 }
-
+// AxiosHttpClient.ts
 export class AxiosHttpClient implements HttpClient {
   private axios: Axios;
+  private showServerDownPopup: () => void;
 
-  constructor(axios: Axios) {
+  constructor(axios: Axios, showServerDownPopup: () => void) {
     this.axios = axios;
+    this.showServerDownPopup = showServerDownPopup;
+
+    this.axios.interceptors.response.use(
+      (response: AxiosResponse) => response,
+      (error: AxiosError) => {
+        if (!error.response) {
+          this.showServerDownPopup();
+        }
+        return Promise.reject(error);
+      },
+    );
   }
 
   async get<T>(url: string, headers: Header = {}): Promise<ResponseData<T>> {
@@ -110,15 +122,31 @@ export class AxiosHttpClient implements HttpClient {
 
         const errorResponse = e.response?.data as ResponseData<T>;
         const error: ErrorResponse | null | undefined = errorResponse.error;
-        if (!error || !error.message || !error.code) {
+        if (!errorResponse && (!error || !error.message || !error.code)) {
           return {
             error: GENERIC_ERROR,
           };
         }
+        if (typeof errorResponse === 'string') {
+          return {
+            error: {
+              code: e.request.status,
+              message: errorResponse,
+            },
+          };
+        }
+        if (typeof error === 'string') {
+          return {
+            error: {
+              code: e.request.status,
+              message: error,
+            },
+          };
+        }
         return {
           error: {
-            code: error.code,
-            message: error.message,
+            code: error?.code || e.request.status,
+            message: error?.message!,
           },
         };
       }

@@ -40,6 +40,11 @@ const Container = styled.div<{ $isOverflow: boolean }>`
     border-radius: 0.5rem;
   }
 
+  .options-container {
+    display: flex;
+    gap: 1rem;
+  }
+
   .header-option {
     display: flex;
     flex-direction: column;
@@ -66,6 +71,7 @@ const Container = styled.div<{ $isOverflow: boolean }>`
       line-height: 1.25rem;
       text-align: left;
       color: #6b7280;
+      word-break: break-all;
     }
   }
 
@@ -78,6 +84,8 @@ interface ContentCardProps {
   headerTitle?: string;
   headerOptionText?: string;
   headerOnOptionClick?: () => void;
+  headerSecondOptionText?: string;
+  headerOnSecondOptionClick?: () => void;
   headerDescription?: string;
   headerBackText?: string;
   headerOnBackClick?: () => void;
@@ -90,6 +98,8 @@ export function ContentCard({
   headerTitle,
   headerOptionText,
   headerOnOptionClick,
+  headerSecondOptionText,
+  headerOnSecondOptionClick,
   headerDescription,
   headerBackText,
   headerOnBackClick,
@@ -115,9 +125,20 @@ export function ContentCard({
                 {headerBackText}
               </div>
             )}
-            {headerOnOptionClick && (
-              <Button onClick={headerOnOptionClick} text={headerOptionText!} />
-            )}
+            <div className="options-container">
+              {headerOnSecondOptionClick && (
+                <Button
+                  onClick={headerOnSecondOptionClick}
+                  text={headerSecondOptionText!}
+                />
+              )}
+              {headerOnOptionClick && (
+                <Button
+                  onClick={headerOnOptionClick}
+                  text={headerOptionText!}
+                />
+              )}
+            </div>
           </div>
           {headerDescription && (
             <div className="description">{headerDescription}</div>

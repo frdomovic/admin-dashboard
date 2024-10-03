@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { Options } from '../../../constants/ApplicationsConstants';
 import ApplicationsTable from './ApplicationsTable';
 import { useRPC } from '../../../hooks/useNear';
-import { Application, Package } from '../../../pages/Applications';
+import { Package } from '../../../pages/Applications';
 import { TableOptions } from '../../../components/common/OptionsHeader';
 import { ContextApplication } from '../../../pages/StartContext';
 
@@ -33,8 +33,8 @@ interface ApplicationsPopupProps {
 }
 
 export interface Applications {
-  available: Application[];
-  owned: Application[];
+  available: Package[];
+  owned: Package[];
 }
 
 export default function ApplicationsPopup({
@@ -57,8 +57,8 @@ export default function ApplicationsPopup({
       if (packages.length !== 0) {
         const tempApplications = await Promise.all(
           packages.map(async (appPackage: Package) => {
-            const releseData = await getLatestRelease(appPackage.id);
-            return { ...appPackage, version: releseData?.version! };
+            const releaseData = await getLatestRelease(appPackage.id);
+            return { ...appPackage, version: releaseData?.version! };
           }),
         );
         setApplicationsList((prevState) => ({
@@ -80,15 +80,17 @@ export default function ApplicationsPopup({
       }
     };
     setApplications();
-  }, []);
+  }, [getLatestRelease, getPackages]);
 
   const selectApplication = async (applicationId: string) => {
     const application = await getPackage(applicationId);
     const release = await getLatestRelease(applicationId);
     setApplication({
       appId: applicationId,
-      name: application.name,
+      name: application?.name ?? '',
       version: release?.version ?? '',
+      path: release?.path ?? '',
+      hash: release?.hash ?? '',
     });
     closeModal();
   };

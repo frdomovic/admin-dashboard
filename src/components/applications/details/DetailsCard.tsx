@@ -59,16 +59,20 @@ export default function DetailsCard({ details }: DetailsCardProps) {
           <span className="highlight">{details.name}</span>
         </div>
         <div className="item">
+          {t.labelIdText}
+          <span className="highlight">{details.id}</span>
+        </div>
+        <div className="item">
           {t.labelOwnerText}
-          <span className="highlight">{details.owner}</span>
+          <span className="highlight">{details.owner || '-'}</span>
         </div>
         <div className="item">
           {t.labelDescriptionText}
-          {details.description}
+          {details.description || '-'}
         </div>
         <div className="item">
           {t.labelRepositoryText}
-          {details.repository}
+          {details.repository || '-'}
         </div>
       </div>
     </DetailsCardWrapper>
