@@ -10,6 +10,9 @@ import ActionDialog from '../common/ActionDialog';
 import { ContextsList } from '../../api/dataSource/NodeDataSource';
 import { ContextObject } from '../../types/context';
 
+
+console.log("testign");
+
 const FlexWrapper = styled.div`
   flex: 1;
 `;
@@ -46,7 +49,7 @@ export default function ContextTable({
   errorMessage,
 }: ContextTableProps) {
   const t = translations.contextPage;
-
+  console.log("testing");
   return (
     <ContentCard
       headerTitle={t.contextPageTitle}
@@ -54,6 +57,7 @@ export default function ContextTable({
       headerDescription={t.contextPageDescription}
       headerOnOptionClick={navigateToStartContext}
     >
+      <div>testing</div>
       <StatusModal
         show={showStatusModal}
         closeModal={closeModal}
