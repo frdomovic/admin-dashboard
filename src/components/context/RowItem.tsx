@@ -57,8 +57,9 @@ const RowItem = styled.div<RowItemComponentProps>`
   }
 `;
 
-console.log('abc');
-console.log('abc');
+console.log("abc");
+console.log("abc");
+console.log("abc");
 export default function rowItem(
   item: ContextObject,
   id: number,

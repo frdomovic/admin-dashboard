@@ -1,6 +1,6 @@
 import React from 'react';
 
 export default function AuthenticatePage() {
-  console.log('abc');
+  console.log("abc");
   return <></>;
 }
