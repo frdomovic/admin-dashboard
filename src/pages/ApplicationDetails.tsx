@@ -26,6 +26,7 @@ export default function ApplicationDetailsPage() {
   const [applicationInformation, setApplicationInformation] =
     useState<AppDetails>();
 
+  console.log('hello');
   useEffect(() => {
     const fetchApplicationData = async () => {
       if (id) {
